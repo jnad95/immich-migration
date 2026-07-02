@@ -1,0 +1,6 @@
+# Ignore temporary / log files
+*.log
+final_duplicates_report.txt
+
+# Ignore large exported chat history JSON to prevent leaks
+photo-backup.json

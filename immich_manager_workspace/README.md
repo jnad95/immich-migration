@@ -1,6 +1,6 @@
 # Immich SSD & Cloud Data Pipeline
 
-This workspace manages a self-hosted Immich photo/video library on a Portable SSD, integrated with Google Drive and OneDrive using a **Drop Box & Backup** strategy.
+This workspace manages a self-hosted Immich photo/video library on a Portable SSD, integrated with Google Drive and OneDrive using a **Drop Box & Backup** strategy. It also maintains a robust, deduplicated backup pipeline for other important files (`01_Personal`, `02_Professional`, and `04_Archive_Backups`).
 
 ---
 
@@ -15,7 +15,8 @@ This workspace manages a self-hosted Immich photo/video library on a Portable SS
 │   ├── immich-data/           # Database, Valkey, machine learning model cache
 │   └── immich_manager_workspace/  # THIS DIRECTORY: Docker, automation scripts, and logs
 │       ├── failed_uploads/    # Timestamped directories containing failed uploads
-│       ├── backup_immich.sh   # Cloud backup sync script
+│       ├── backup_immich.sh   # Cloud backup sync script for photos/videos
+│       ├── backup_data.sh     # Cloud backup sync & dedupe script for other data
 │       ├── ingest_to_immich.sh# Cloud inbox ingestion script
 │       └── docker-compose.yml # Immich Docker services definition
 └── _Inbox/                    # Local inbox staging folder
@@ -43,8 +44,9 @@ Configure two remotes:
 2.  **`onedrive`** (OneDrive)
 
 Create these folders inside both cloud storage accounts:
--   `Immich_DropBox` (Staging directory for upload/ingestion)
--   `Immich_Backup` (Mirrored backup folder)
+-   `Immich_DropBox` (Staging directory for photo ingestion)
+-   `Immich_Backup` (Mirrored backup folder for photos)
+-   `Data_Backup` (Mirrored backup folder for other files)
 
 ### 3. Automate Ingest and Backups (Cron)
 Add automation cron jobs to your system scheduler. Run `crontab -e` and add the following lines:
@@ -54,6 +56,9 @@ Add automation cron jobs to your system scheduler. Run `crontab -e` and add the 
 
 # Mirror Immich Library to Cloud daily at 2:00 AM
 0 2 * * * /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_immich.sh >> /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup.log 2>&1
+
+# Mirror & Deduplicate Personal/Professional/Archive files daily at 3:00 AM
+0 3 * * * /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_data.sh >> /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_data.log 2>&1
 ```
 
 ---
@@ -70,11 +75,18 @@ Add automation cron jobs to your system scheduler. Run `crontab -e` and add the 
 -   **Data Safety**: Checks if the source SSD directory is mounted and has files before starting. It will abort if the directory is missing or empty, protecting your cloud backups from being wiped out.
 -   **Incremental Archiving**: Employs `--backup-dir` configuration. Deleted or modified files are moved to `Immich_Backup_Archive/YYYY-MM-DD/` on the cloud remote instead of being deleted permanently.
 
+### C. Data Backup & Deduplication: `backup_data.sh`
+-   **What it does**: Cleans up duplicate files locally on the SSD across `01_Personal`, `02_Professional`, and `04_Archive_Backups`, then mirrors them to the cloud under `Data_Backup/` on GDrive and OneDrive.
+-   **Local Deduplication**: Automatically runs `jdupes` to find and delete duplicates on the SSD without prompting, preserving file priority (keeps files in `01_Personal` over `02_Professional` and `04_Archive_Backups`). Logs duplicates resolved to `workspace/duplicates.log`.
+-   **Data Safety & Archiving**: Validates source paths are mounted and not empty before executing. Deleted/modified files are incrementally archived to `Data_Backup_Archive/YYYY-MM-DD/` on the cloud.
+
 ---
 
 ## 📝 Logging & Monitoring
 
 Logs are saved in this workspace directory:
--   `ingest.log`: Main ingestion pipeline steps and validation checks.
--   `backup.log`: Mirror backup task execution logs.
--   `rclone_ingest.log` & `rclone_backup.log`: Detailed rclone command outputs.
+-   `ingest.log`: Ingestion pipeline execution log.
+-   `backup.log`: Media library mirror execution log.
+-   `backup_data.log`: Personal/Professional files mirror execution log.
+-   `duplicates.log`: Record of duplicate files automatically cleaned up by `jdupes`.
+-   `rclone_ingest.log`, `rclone_backup.log`, & `rclone_data_backup.log`: Detailed rclone outputs.

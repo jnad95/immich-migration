@@ -39,8 +39,9 @@ This runbook guides you through setting up, configuring, and verifying the Immic
 
 ### Step 2: Create Staging Cloud Folders
 *   **Action/Command:** Create the folders in both your Google Drive and OneDrive accounts:
-    -   `Immich_DropBox` (Staging directory for incoming files)
-    -   `Immich_Backup` (Destination directory for library mirroring)
+    -   `Immich_DropBox` (Staging directory for incoming photos)
+    -   `Immich_Backup` (Destination directory for media library mirroring)
+    -   `Data_Backup` (Destination directory for personal/professional data mirroring)
 *   **Expected Outcome:** Verify rclone can access them:
     ```bash
     rclone lsd gdrive: --config /Volumes/PortableSSD/03_Media/immich_manager_workspace/rclone.conf
@@ -70,12 +71,15 @@ This runbook guides you through setting up, configuring, and verifying the Immic
 
     # Backup to Cloud daily at 2:00 AM
     0 2 * * * /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_immich.sh >> /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup.log 2>&1
+
+    # Mirror & Deduplicate Personal/Professional/Archive files daily at 3:00 AM
+    0 3 * * * /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_data.sh >> /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_data.log 2>&1
     ```
 *   **Expected Outcome:** View configuration to check output:
     ```bash
     crontab -l
     ```
-    Both cron jobs are listed correctly.
+    All three cron jobs are listed correctly.
 
 ---
 
@@ -96,6 +100,14 @@ This runbook guides you through setting up, configuring, and verifying the Immic
 5.  **Backup Verification**:
     - Verify `backup.log` matches execution.
     - Check the remote cloud storage `Immich_Backup/` folder and ensure your SSD files successfully synced there.
+6.  **Data Backup & Dedupe Run**: Run the non-media backup script:
+    ```bash
+    /Volumes/PortableSSD/03_Media/immich_manager_workspace/backup_data.sh
+    ```
+7.  **Data Backup Verification**:
+    - Verify `backup_data.log` confirms successful execution and sync matching.
+    - Verify `duplicates.log` for details on files cleaned by `jdupes`.
+    - Check Google Drive and OneDrive folders under `Data_Backup/` to ensure your data mirrored.
 
 ---
 
